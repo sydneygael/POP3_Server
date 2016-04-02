@@ -19,12 +19,14 @@ import utils.Utilitaires;
 
 /**
  * cette classe permet de lancer une session de communication
- * tous les Ã©tats sont reprÃ©sentÃ©s
+ * tous les états sont représentés
  * @author Sydney
  *
  */
 public class Communication extends Thread {
 
+
+	
 	//les commandes POP 3
 	private static final String APOP = "APOP";
 	private static final String LIST = "LIST";
@@ -32,7 +34,11 @@ public class Communication extends Thread {
 	private static final String DELETE = "DELE";
 	private static final String STAT = "STAT";
 	private static final String RETR = "RETR";
+
+	//les retours clients
 	public static final String END_OF_LINE = "\r\n";
+	private static final String WRONG_REQUEST = "ERROR THE REQUEST IS WRONG";
+	private static final String CLIENT_TRYING_A_CONNECTION = "A client trying a connection.....";
 
 	private final int NB_APOP_MAX = 5;
 
@@ -80,21 +86,20 @@ public class Communication extends Thread {
 		passwords.add("titi");
 		passwords.add("tata");
 
-		//on commence par mettre l'ï¿½tat en initialisation
+		//on commence par mettre l'état en initialisation
 		this.currentState = States.Inititialization_State;
 	}
 
 	public Communication(Socket s) {
 
-		System.out.println("A client trying a connection.....");
+		System.out.println(CLIENT_TRYING_A_CONNECTION);
 		this.socket = s;
 		this.initialization();
 	}
 
 	public Communication(Socket s, ArrayList<Mail> mails) {
 
-		System.out.println("A client trying a connection.....");
-
+		System.out.println(CLIENT_TRYING_A_CONNECTION);
 		this.socket = s;
 		this.userMails = mails;
 		initialization();
@@ -135,32 +140,10 @@ public class Communication extends Thread {
 		return response;
 	}
 
-	public void sendResponse(String response)
-			throws IOException
-	{
-		ByteArrayOutputStream dataStream= new ByteArrayOutputStream();
-		DataOutputStream dataWriter = new DataOutputStream(dataStream);
-
-		try
-		{
-			// Transform the response into a byte array
-			dataWriter.writeBytes(response);
-
-			// Then, send the response to the client
-			socketWriter.write(dataStream.toByteArray());
-		}
-		catch(IOException e)
-		{
-			e.printStackTrace();
-		}
-	}
-
 	@Override
 	public void run() {
 
 		super.run();
-
-		boolean mailToDelete = false;
 		////////////////////////////////
 		//start Inititialization_State
 		//////////////////////////////
@@ -177,8 +160,6 @@ public class Communication extends Thread {
 		this.sendMessage(welcomeMessage);
 		currentState = States.Authorization_State;
 
-		System.out.println("-------- Authorization State ----------");
-
 		// clear the string builder
 		responseBuilder = null;
 
@@ -188,282 +169,345 @@ public class Communication extends Thread {
 
 		if (request != null & !request.isEmpty() )
 		{
-			while ( null != currentState) {
-
-
-				if(States.Authorization_State == currentState) {
-
-					boolean authorized = false;
-					int nbTest = 0;
-
-					do {
-						if(request.startsWith(APOP)) {
-
-							//on lance un controle MD5
-							//int tmp = request.indexOf(" ");
-							//int tmp2 = request.lastIndexOf(" ");
-							//this.userName = request.substring(tmp + 1, tmp2);
-							//this.password = request.substring(tmp2 + 1,request.length()-1);
-
-							String [] requestS = request.split(" ");
-
-
-							userName = requestS[1];
-							password = requestS[2];
-
-							authorized = verifyUser(userName, password);
-
-							if (authorized) {
-
-
-								responseBuilder = new StringBuilder();
-								responseBuilder.append("+OK users maildrop has "+userMails.size()+" messages");
-								responseBuilder.append(END_OF_LINE);
-								this.sendMessage(responseBuilder.toString());
-
-								currentState = States.Transaction_State;
-							}
-							/*int userRow = -1;
-
-							String correctPassword = "";
-
-							for(int i=0;i<users.size();i++) {
-								if(0==users.get(i).compareTo(userName)) {
-									correctPassword = users.get(i);
-									userRow = i;
-									break;
-								}
-							}
-
-							/*MessageDigest md;
-							String cryptedPassword ="";
-							try {
-								md = MessageDigest.getInstance("MD5");
-								final byte[] messageDigest = md.digest((this.domain + correctPassword).getBytes());
-								final BigInteger number = new BigInteger(1, messageDigest);
-								cryptedPassword = String.format("%032x", number);
-							} catch (NoSuchAlgorithmException e) {
-								e.printStackTrace();
-							}
-
-							if(userRow >= 0) {
-								if( (0==users.get(userRow).compareTo(this.userName)) 
-										&& (0==cryptedPassword.compareTo(this.password)) ) {
-									authorized = true;
-									System.out.println(this.userName + " Authozired");
-									break;
-								}
-							}*/
-
-							if(!authorized) { // wrong password 
-
-								System.out.println("Server send : -ERR Wrong authentication");
-								responseBuilder = new StringBuilder();
-								responseBuilder.append("-ERR Wrong authentication");
-								responseBuilder.append(END_OF_LINE);
-								this.sendMessage(responseBuilder.toString());
-							}
-						}
-
-						else if(request.startsWith(QUIT)) {
-							System.out.println("client want to close connection");
-							this.closeConnection();
-						}
-
-						else {
-							System.out.println("Server send : -ERR Retry " + (this.NB_APOP_MAX-nbTest) + " remaining attempts");
-
-							responseBuilder = new StringBuilder();
-							responseBuilder.append("-ERR Retry " + (this.NB_APOP_MAX-nbTest) + " remaining attempts");
-							responseBuilder.append(END_OF_LINE);
-							this.sendMessage(responseBuilder.toString());
-						}
-						nbTest++;
-					}
-
-					while(!authorized && nbTest < NB_APOP_MAX);
-				}
-
-				////////////////////////////////
-				//start Transaction_State
-				//////////////////////////////
-
-				else if(States.Transaction_State == currentState) {
-
-					System.out.println("------- TransactionState ----------");
-					String message = this.receiveMessage();
-					System.out.println("Client send : \n" + message);
-
-					String reponse;
-					int cpt = 0;
-
-					int maxAttempts = 3;
-					int totalBytes = 0;
-
-					for( Mail m : userMails) {
-						totalBytes += m.getNbByte();
-					}
-
-					do {
-						//handle receive command LIST
-						if(message.startsWith(LIST)) {
-							reponse = "+OK " + this.userMails.size() + " (" + totalBytes + " Bytes)";
-
-							for(Mail m : this.userMails) {
-								reponse += "ID " + m.getId() + " " + m.getSubject() + " (" + m.getNbByte() + " Bytes)";
-							}
-
-							System.out.println("Server send : " + reponse);
-							responseBuilder = new StringBuilder();
-							responseBuilder.append(reponse);
-							responseBuilder.append(END_OF_LINE);
-							//send the reponse
-							this.sendMessage(responseBuilder.toString());
-						}
-
-						//handle receive command RETR
-						else if(message.startsWith(RETR)) {
-							/*int tmp = message.indexOf(" ");
-							int tmp2 = message.indexOf("\n");
-							int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
-							String[] messages = message.split(" ");
-							int id = Integer.parseInt(messages[1]);
-							reponse = "";
-							String stringToSend2 = "";
-							for(Mail m : this.userMails) {
-								if(m.getId() == id) {
-									reponse = "+OK " + m.getNbByte();
-									stringToSend2 = m.generateMail();
-									break;
-								}
-							}
-
-							System.out.println("Server send : " + reponse);
-							responseBuilder = new StringBuilder();
-							responseBuilder.append(reponse);
-							responseBuilder.append(END_OF_LINE);
-							//send the reponse
-							this.sendMessage(responseBuilder.toString());
-
-							System.out.println("Server send : " + stringToSend2);
-							responseBuilder = new StringBuilder();
-							responseBuilder.append(stringToSend2);
-							responseBuilder.append(END_OF_LINE);
-							//send the reponse
-							this.sendMessage(responseBuilder.toString());
-
-						}
-
-						//handle receive command DELETE
-						else if(message.startsWith(DELETE)) {
-							/*int tmp = message.indexOf(" ");
-							int tmp2 = message.indexOf("\n");
-							int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
-							String[] messages = message.split(" ");
-							int id = Integer.parseInt(messages[1]);
-							reponse = "";
-							
-							//on cherche le mail ï¿½ dï¿½truire
-							for(Mail m : this.userMails) {
-								if(m.getId() == id) {
-									m.setToDelete(true);
-									mailToDelete = true;
-								}
-							}
-
-							if(!mailToDelete) {
-								reponse = "-ERR message " + id + " invalid";
-							}
-							else {
-								reponse = "+OK message "+ id+ " deleted";
-							}
-
-							System.out.println("Server send : " + reponse);
-
-							responseBuilder = new StringBuilder();
-							responseBuilder.append(reponse);
-							responseBuilder.append(END_OF_LINE);
-							//send the reponse
-							this.sendMessage(responseBuilder.toString());
-						}
-
-						//handle receive command STAT
-						else if(message.startsWith(STAT)) {
-							reponse = "+OK " + this.userMails.size() + " (" + totalBytes + " Bytes)";
-
-							System.out.println("Server send : " + reponse);
-							responseBuilder = new StringBuilder();
-							responseBuilder.append(reponse);
-							responseBuilder.append(END_OF_LINE);
-							//send the reponse
-							this.sendMessage(responseBuilder.toString());
-						}
-
-						else if( message == null || message.isEmpty()) {
-							cpt ++;
-							if(cpt > maxAttempts) {
-								System.out.println("ERROR connection aborted");
-								this.closeConnection();
-							}
-						}
-
-						message = this.receiveMessage();
-						System.out.println("Client send : " + message);
-					}
-
-					while(!message.startsWith(QUIT));
-
-					if(message.startsWith(QUIT)) {
-						if(!mailToDelete) {
-							System.out.println("ERROR client closed connection");
-							this.closeConnection();
-						}
-						else {
-							currentState = States.Update_State;
-						}
-					}
-				}
-
-				////////////////////////////////
-				//start Update_State
-				//////////////////////////////
-
-				else if(States.Update_State == currentState) {
-
-					System.out.println("--------- UpdateState -----------------");
-					String reponse;
-
-					if(mailToDelete) {
-						
-						for(Mail m : this.userMails) {
-							if(m.getToDelete()) {
-								this.userMails.remove(m);
-							}
-						}
-						reponse = "+OK " + this.userMails.size() + " messages left";
-					}
-					else {
-						reponse = "-ERR some messages not removed";
-					}
-
-					System.out.println("Server send : " + reponse);
-					responseBuilder = new StringBuilder();
-					responseBuilder.append(reponse);
-					responseBuilder.append(END_OF_LINE);
-					//send the reponse
-					this.sendMessage(responseBuilder.toString());
-
-					currentState = States.Inititialization_State;
-				}
-
-			}
+			this.commencerTraitement(request);
 		}
+		
+		else {
+			this.currentState = null;
+			System.out.println(WRONG_REQUEST);
+		}
+
 
 	}
 
-	private void closeConnection() {
+	private void commencerTraitement (String request) {
+
+		boolean mailToDelete = false;
+
+		while ( null != currentState) {
+
+			switch (this.currentState) {
+
+			case Authorization_State:
+				
+				System.out.println("-------- Authorization State ----------");
+				this.authorisationState(request);
+
+				break;
+			case Transaction_State :
+
+				System.out.println("------- TransactionState ----------");
+				String requete = this.receiveMessage();
+				mailToDelete = transactionState(requete);
+
+				break;
+
+			case Update_State :
+
+				System.out.println("--------- UpdateState -----------------");
+				updateState(mailToDelete);
+
+				break;
+
+			default:
+				this.closeConnection();
+				break;
+			}
+		}
+	}
+
+	/**
+	 * permet de gérer l'état Authorization_State
+	 * @param request la requête à traiter
+	 */
+	private void authorisationState(String request) {
+		boolean authorized = false;
+		int nbTest = 0;
+
+		do {
+			if(request.startsWith(APOP)) {
+
+				authorized = traiterAPOP(request);
+			}
+
+			else if(request.startsWith(QUIT)) {
+
+				traiterQUIT();
+			}
+
+			else {
+				System.out.println("Server send : -ERR Retry " + (this.NB_APOP_MAX-nbTest) + " remaining attempts");
+
+				responseBuilder = new StringBuilder();
+				responseBuilder.append("-ERR Retry " + (this.NB_APOP_MAX-nbTest) + " remaining attempts");
+				responseBuilder.append(END_OF_LINE);
+				this.sendMessage(responseBuilder.toString());
+			}
+			nbTest++;
+		}
+
+		while(!authorized && nbTest < NB_APOP_MAX);
+	}
+
+	/**
+	 * permet de traiter l'état update state
+	 * @param mailToDelete
+	 */
+	private void updateState(boolean mailToDelete) {
+		String reponse;
+
+		if(mailToDelete) {
+
+			for(Mail m : this.userMails) {
+				if(m.getToDelete()) {
+					this.userMails.remove(m);
+				}
+			}
+			reponse = "+OK " + this.userMails.size() + " messages left";
+		}
+		else {
+			reponse = "-ERR some messages not removed";
+		}
+
+		System.out.println("Server send : " + reponse);
+		responseBuilder = new StringBuilder();
+		responseBuilder.append(reponse);
+		responseBuilder.append(END_OF_LINE);
+		//send the reponse
+		this.sendMessage(responseBuilder.toString());
+
+		currentState = States.Inititialization_State;
+	}
+
+	protected boolean transactionState(String requete) {
+		boolean mailToDelete = false;
+		System.out.println("Client send : \n" + requete);
+
+		String reponse;
+		int cpt = 0;
+
+		int maxAttempts = 3;
+		int totalBytes = 0;
+
+		for( Mail m : userMails) {
+			totalBytes += m.getNbByte();
+		}
+
+		do {
+			//handle receive command LIST
+			if(requete.startsWith(LIST)) {
+				traiterLIST(totalBytes);
+			}
+
+			//handle receive command RETR
+			else if(requete.startsWith(RETR)) {
+				traiterRETR(requete);
+			}
+
+			//handle receive command DELETE
+			else if(requete.startsWith(DELETE)) {
+
+				mailToDelete = traiterDELETE(requete, mailToDelete);
+			}
+
+			//handle receive command STAT
+			else if(requete.startsWith(STAT)) {
+				reponse = "+OK " + this.userMails.size() + " (" + totalBytes + " Bytes)";
+
+				System.out.println("Server send : " + reponse);
+				responseBuilder = new StringBuilder();
+				responseBuilder.append(reponse);
+				responseBuilder.append(END_OF_LINE);
+				//send the reponse
+				this.sendMessage(responseBuilder.toString());
+			}
+
+			else if( requete == null || requete.isEmpty()) {
+				cpt ++;
+				if(cpt > maxAttempts) {
+					System.out.println("ERROR connection aborted");
+					this.closeConnection();
+				}
+			}
+
+			requete = this.receiveMessage();
+			System.out.println("Client send : " + requete);
+		}
+
+		while(!requete.startsWith(QUIT));
+
+		if(requete.startsWith(QUIT)) {
+			if(!mailToDelete) {
+				System.out.println("ERROR client closed connection");
+				this.closeConnection();
+			}
+			else {
+				currentState = States.Update_State;
+			}
+		}
+		return mailToDelete;
+	}
+
+	protected boolean traiterDELETE(String requete, boolean mailToDelete) {
+		String reponse;
+		/*int tmp = message.indexOf(" ");
+		int tmp2 = message.indexOf("\n");
+		int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
+		String[] messages = requete.split(" ");
+		int id = Integer.parseInt(messages[1]);
+		reponse = "";
+
+		//on cherche le mail à détruire
+		for(Mail m : this.userMails) {
+			if(m.getId() == id) {
+				m.setToDelete(true);
+				mailToDelete = true;
+			}
+		}
+
+		if(!mailToDelete) {
+			reponse = "-ERR message " + id + " invalid";
+		}
+		else {
+			reponse = "+OK message "+ id+ " deleted";
+		}
+
+		System.out.println("Server send : " + reponse);
+
+		responseBuilder = new StringBuilder();
+		responseBuilder.append(reponse);
+		responseBuilder.append(END_OF_LINE);
+		//send the reponse
+		this.sendMessage(responseBuilder.toString());
+		return mailToDelete;
+	}
+
+	protected void traiterRETR(String requete) {
+		String reponse;
+		/*int tmp = message.indexOf(" ");
+		int tmp2 = message.indexOf("\n");
+		int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
+		String[] messages = requete.split(" ");
+		int id = Integer.parseInt(messages[1]);
+		reponse = "";
+		String stringToSend2 = "";
+		for(Mail m : this.userMails) {
+			if(m.getId() == id) {
+				reponse = "+OK " + m.getNbByte();
+				stringToSend2 = m.generateMail();
+				break;
+			}
+		}
+
+		System.out.println("Server send : " + reponse);
+		responseBuilder = new StringBuilder();
+		responseBuilder.append(reponse);
+		responseBuilder.append(END_OF_LINE);
+		//send the reponse
+		this.sendMessage(responseBuilder.toString());
+
+		System.out.println("Server send : " + stringToSend2);
+		responseBuilder = new StringBuilder();
+		responseBuilder.append(stringToSend2);
+		responseBuilder.append(END_OF_LINE);
+		//send the reponse
+		this.sendMessage(responseBuilder.toString());
+	}
+
+	protected void traiterLIST(int totalBytes) {
+		String reponse;
+		reponse = "+OK " + this.userMails.size() + " (" + totalBytes + " Bytes)";
+
+		for(Mail m : this.userMails) {
+			reponse += "ID " + m.getId() + " " + m.getSubject() + " (" + m.getNbByte() + " Bytes)";
+		}
+
+		System.out.println("Server send : " + reponse);
+		responseBuilder = new StringBuilder();
+		responseBuilder.append(reponse);
+		responseBuilder.append(END_OF_LINE);
+		//send the reponse
+		this.sendMessage(responseBuilder.toString());
+	}
+
+	protected void traiterQUIT() {
+		System.out.println("client want to close connection");
+		this.closeConnection();
+	}
+
+	protected boolean traiterAPOP(String request) {
+		boolean authorized;
+		//on lance un controle MD5
+		//int tmp = request.indexOf(" ");
+		//int tmp2 = request.lastIndexOf(" ");
+		//this.userName = request.substring(tmp + 1, tmp2);
+		//this.password = request.substring(tmp2 + 1,request.length()-1);
+
+		String [] requestS = request.split(" ");
+
+
+		userName = requestS[1];
+		password = requestS[2];
+
+		authorized = verifyUser(userName, password);
+
+		if (authorized) {
+
+
+			responseBuilder = new StringBuilder();
+			responseBuilder.append("+OK users maildrop has "+userMails.size()+" messages");
+			responseBuilder.append(END_OF_LINE);
+			this.sendMessage(responseBuilder.toString());
+
+			currentState = States.Transaction_State;
+		}
+		/*int userRow = -1;
+
+		String correctPassword = "";
+
+		for(int i=0;i<users.size();i++) {
+			if(0==users.get(i).compareTo(userName)) {
+				correctPassword = users.get(i);
+				userRow = i;
+				break;
+			}
+		}
+
+		/*MessageDigest md;
+		String cryptedPassword ="";
+		try {
+			md = MessageDigest.getInstance("MD5");
+			final byte[] messageDigest = md.digest((this.domain + correctPassword).getBytes());
+			final BigInteger number = new BigInteger(1, messageDigest);
+			cryptedPassword = String.format("%032x", number);
+		} catch (NoSuchAlgorithmException e) {
+			e.printStackTrace();
+		}
+
+		if(userRow >= 0) {
+			if( (0==users.get(userRow).compareTo(this.userName)) 
+					&& (0==cryptedPassword.compareTo(this.password)) ) {
+				authorized = true;
+				System.out.println(this.userName + " Authozired");
+				break;
+			}
+		}*/
+
+		if(!authorized) { // wrong password 
+
+			System.out.println("Server send : -ERR Wrong authentication");
+			responseBuilder = new StringBuilder();
+			responseBuilder.append("-ERR Wrong authentication");
+			responseBuilder.append(END_OF_LINE);
+			this.sendMessage(responseBuilder.toString());
+		}
+		return authorized;
+	}
+
+	protected void closeConnection() {
 		try {
 			socket.close();
+			this.currentState=null;
 			System.out.println("connextion closed........");
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -480,7 +524,7 @@ public class Communication extends Thread {
 		this.socket = s;
 	}
 
-	public boolean verifyUser(String user , String mdp) {
+	protected boolean verifyUser(String user , String mdp) {
 
 		for ( int i =0 ; i < users.size() ; i++) {
 			if ( user.equals(users.get(i)) ) {
