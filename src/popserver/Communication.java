@@ -26,7 +26,8 @@ import utils.Utilitaires;
 public class Communication extends Thread {
 
 
-	
+
+	public static final String ERR_WRONG_PASSWORD = "-ERR wrong password ";
 	//les commandes POP 3
 	private static final String APOP = "APOP";
 	private static final String LIST = "LIST";
@@ -39,6 +40,7 @@ public class Communication extends Thread {
 	public static final String END_OF_LINE = "\r\n";
 	private static final String WRONG_REQUEST = "ERROR THE REQUEST IS WRONG";
 	private static final String CLIENT_TRYING_A_CONNECTION = "A client trying a connection.....";
+	public static final String ERR_INVALID_USERNAME_OR_PASSWORD = "-ERR invalid username or password";
 
 	private final int NB_APOP_MAX = 5;
 
@@ -171,7 +173,7 @@ public class Communication extends Thread {
 		{
 			this.commencerTraitement(request);
 		}
-		
+
 		else {
 			this.currentState = null;
 			System.out.println(WRONG_REQUEST);
@@ -189,7 +191,7 @@ public class Communication extends Thread {
 			switch (this.currentState) {
 
 			case Authorization_State:
-				
+
 				System.out.println("-------- Authorization State ----------");
 				this.authorisationState(request);
 
@@ -382,6 +384,58 @@ public class Communication extends Thread {
 		return mailToDelete;
 	}
 
+	protected void traiterUSER (String requete) {
+
+		String [] requestS = requete.split(" ");
+		String reponse;
+		System.out.println("Server received an USER command");
+		String userName = requestS[1];
+
+		if(users.contains(userName)){
+
+			System.out.println("An user matching the input username");
+
+			responseBuilder = new StringBuilder();
+			reponse = "+OK waiting for " + userName + "'s password";
+			responseBuilder.append(reponse);
+			responseBuilder.append(END_OF_LINE);
+
+			//attente de commande pass
+		}
+
+		else{
+			reponse = "-ERR , sorry user : " + userName + " not found";
+			reponse = "+OK waiting for " + userName + "'s password";
+			responseBuilder.append(reponse);
+			responseBuilder.append(END_OF_LINE);
+		}
+	}
+
+	protected void traiterPASS (String requete) {
+
+		System.out.println("Server receive a PASS command");
+		String params [] = requete.split(" ");
+		password = params[1];
+
+		if (checkPassword(password)) {
+
+			responseBuilder = new StringBuilder();
+			responseBuilder.append("+OK users maildrop has "+userMails.size()+" messages");
+			responseBuilder.append(END_OF_LINE);
+			this.sendMessage(responseBuilder.toString());
+
+			currentState = States.Transaction_State;
+		}
+		else {
+			responseBuilder = new StringBuilder();
+			responseBuilder.append(ERR_WRONG_PASSWORD);
+			responseBuilder.append(END_OF_LINE);
+			this.sendMessage(responseBuilder.toString());
+			this.currentState= null; // on termine alors
+		}
+
+	}
+
 	protected void traiterRETR(String requete) {
 		String reponse;
 		/*int tmp = message.indexOf(" ");
@@ -431,7 +485,9 @@ public class Communication extends Thread {
 	}
 
 	protected void traiterQUIT() {
+
 		System.out.println("client want to close connection");
+
 		this.closeConnection();
 	}
 
@@ -449,7 +505,7 @@ public class Communication extends Thread {
 		userName = requestS[1];
 		password = requestS[2];
 
-		authorized = verifyUser(userName, password);
+		authorized = checkUser(userName, password);
 
 		if (authorized) {
 
@@ -497,7 +553,7 @@ public class Communication extends Thread {
 
 			System.out.println("Server send : -ERR Wrong authentication");
 			responseBuilder = new StringBuilder();
-			responseBuilder.append("-ERR Wrong authentication");
+			responseBuilder.append(ERR_INVALID_USERNAME_OR_PASSWORD);
 			responseBuilder.append(END_OF_LINE);
 			this.sendMessage(responseBuilder.toString());
 		}
@@ -524,13 +580,23 @@ public class Communication extends Thread {
 		this.socket = s;
 	}
 
-	protected boolean verifyUser(String user , String mdp) {
+	protected boolean checkUser(String user , String mdp) {
 
 		for ( int i =0 ; i < users.size() ; i++) {
 			if ( user.equals(users.get(i)) ) {
 				if ( mdp.equals(passwords.get(i))) {
 					return true;
 				}
+			}
+		}
+		return false;
+	}
+
+	protected boolean checkPassword(String password) {
+
+		for ( int i =0 ; i < users.size() ; i++) {
+			if ( password.equals(passwords.get(i))) {
+				return true;
 			}
 		}
 		return false;
