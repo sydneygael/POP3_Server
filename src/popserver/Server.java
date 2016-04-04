@@ -18,7 +18,7 @@ public class Server {
 	private ArrayList<Mail> mails;
 	private ServerSocket serverSocket = null;
 
-	public void initilalisation () throws IOException {
+	protected void initilalisation () throws IOException {
 
 		this.mails = new ArrayList<Mail>();
 
@@ -66,7 +66,7 @@ public class Server {
 		return mailsPaths;
 	}
 
-	public void run() {
+	protected void run() {
 		run = true;
 
 		try {

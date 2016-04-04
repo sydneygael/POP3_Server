@@ -45,27 +45,28 @@ public class Communication extends Thread {
 	private final int NB_APOP_MAX = 5;
 
 	private Socket socket;
-	private States currentState;
+	protected States currentState;
 	protected BufferedInputStream socketReader;
 	protected BufferedOutputStream socketWriter;
 	protected StringBuilder responseBuilder;
+	
 
 
 	//les flux 
-	private OutputStreamWriter writer;
-	private BufferedReader reader;
+	protected OutputStreamWriter writer;
+	protected BufferedReader reader;
 
 
-	private ArrayList<String> users;
-	private ArrayList<String> passwords;
+	protected ArrayList<String> users;
+	protected ArrayList<String> passwords;
 
-	private String userName;
-	private String password;
-	private ArrayList<Mail> userMails;
-	private String domain;
+	protected String userName;
+	protected String password;
+	protected ArrayList<Mail> userMails;
+	protected String domain;
 
 
-	private enum States {
+	protected enum States {
 		Inititialization_State,
 		Authorization_State,
 		Transaction_State,
@@ -493,11 +494,6 @@ public class Communication extends Thread {
 
 	protected boolean traiterAPOP(String request) {
 		boolean authorized;
-		//on lance un controle MD5
-		//int tmp = request.indexOf(" ");
-		//int tmp2 = request.lastIndexOf(" ");
-		//this.userName = request.substring(tmp + 1, tmp2);
-		//this.password = request.substring(tmp2 + 1,request.length()-1);
 
 		String [] requestS = request.split(" ");
 
@@ -517,37 +513,6 @@ public class Communication extends Thread {
 
 			currentState = States.Transaction_State;
 		}
-		/*int userRow = -1;
-
-		String correctPassword = "";
-
-		for(int i=0;i<users.size();i++) {
-			if(0==users.get(i).compareTo(userName)) {
-				correctPassword = users.get(i);
-				userRow = i;
-				break;
-			}
-		}
-
-		/*MessageDigest md;
-		String cryptedPassword ="";
-		try {
-			md = MessageDigest.getInstance("MD5");
-			final byte[] messageDigest = md.digest((this.domain + correctPassword).getBytes());
-			final BigInteger number = new BigInteger(1, messageDigest);
-			cryptedPassword = String.format("%032x", number);
-		} catch (NoSuchAlgorithmException e) {
-			e.printStackTrace();
-		}
-
-		if(userRow >= 0) {
-			if( (0==users.get(userRow).compareTo(this.userName)) 
-					&& (0==cryptedPassword.compareTo(this.password)) ) {
-				authorized = true;
-				System.out.println(this.userName + " Authozired");
-				break;
-			}
-		}*/
 
 		if(!authorized) { // wrong password 
 
