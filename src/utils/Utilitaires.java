@@ -1,10 +1,5 @@
 package utils;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -35,8 +30,8 @@ public class Utilitaires {
     public static String generateStamp() {
 
 		Date date = new Date();
-		String uniqueID = UUID.randomUUID().toString();
-		String stamp = date.toString()+uniqueID;
+		String id = UUID.randomUUID().toString();
+		String stamp = date.toString()+id;
 		
 		MessageDigest m;
 		try {
@@ -45,45 +40,9 @@ public class Utilitaires {
 			stamp = new BigInteger(1,m.digest()).toString(16);
 			return stamp;
 		} catch (NoSuchAlgorithmException e) {
-			
+			e.printStackTrace();
 		}
-		return null;
-	}
-    
-public static boolean LireAuthentificationMD5(String identifiant, String motDePasse, String timbre) {
-		
-		String filePath = new File("").getAbsolutePath();
-		filePath += "/Fichiers/authentifications.txt";
-		
-		try {
-			BufferedReader buff = new BufferedReader(new FileReader(filePath));
-		 
-			try {
-				String line;
-				String[] parts;
-				while ((line = buff.readLine()) != null) {
-					parts = line.split(";");
-					
-					MessageDigest m;
-					try {
-						m = MessageDigest.getInstance("MD5");
-						parts[1] = timbre+parts[1];
-						m.update(parts[1].getBytes(),0,parts[1].length());
-						parts[1] = new BigInteger(1,m.digest()).toString(16);
-					} catch (NoSuchAlgorithmException e) {
-						System.out.println("Erreur MD5");
-					}
-					
-					if(parts[0].equals(identifiant) && parts[1].equals(motDePasse))
-						return true;
-				}
-			} finally {
-				buff.close();
-			}
-		} catch (FileNotFoundException fnfe) { System.out.println("Fichier d'authentification introuvable");
-		} catch (IOException e) { System.out.println("Erreur IO --" + e.toString()); }
-		
-		return false;
+		return stamp;
 	}
     
 }

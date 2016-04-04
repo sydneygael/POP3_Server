@@ -14,6 +14,7 @@ public class CommunicationSecure extends Communication {
 	private String stamp; // timbre à date
 	public CommunicationSecure(Socket s, ArrayList<Mail> mails) {
 		super(s, mails);
+		// on génère le timbre à date
 		this.stamp = Utilitaires.generateStamp();
 	}
 	
@@ -28,10 +29,10 @@ public class CommunicationSecure extends Communication {
 		password = requestS[2];
 
 		authorized = verifyMD5(userName, password);
+		
+		
 
 		if (authorized) {
-
-
 			responseBuilder = new StringBuilder();
 			responseBuilder.append("+OK users maildrop has "+userMails.size()+" messages");
 			responseBuilder.append(END_OF_LINE);
@@ -59,7 +60,8 @@ public class CommunicationSecure extends Communication {
 		
 		String correctPassword = "";
 		for(int i=0;i<users.size();i++) {
-			if(0==users.get(i).compareTo(this.userName)) {
+			
+			if(users.get(i).equals(this.userName)) {
 				correctPassword = users.get(i);
 				userRow = i;
 				break;

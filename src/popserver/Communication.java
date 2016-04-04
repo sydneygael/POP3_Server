@@ -36,6 +36,8 @@ public class Communication extends Thread {
 	private static final String DELETE = "DELE";
 	private static final String STAT = "STAT";
 	private static final String RETR = "RETR";
+	private static final String USER = "USER";
+	private static final String PASS = "PASS"; 
 
 	//les retours clients
 	public static final String END_OF_LINE = "\r\n";
@@ -70,6 +72,7 @@ public class Communication extends Thread {
 	protected enum States {
 		Inititialization_State,
 		Authorization_State,
+		Pass_wait,
 		Transaction_State,
 		Update_State;
 	}
@@ -213,6 +216,11 @@ public class Communication extends Thread {
 
 				break;
 
+			case Pass_wait :
+				String pass = this.receiveMessage();
+				traiterPASS(pass);
+				break ;
+
 			default:
 				this.closeConnection();
 				break;
@@ -234,8 +242,11 @@ public class Communication extends Thread {
 				authorized = traiterAPOP(request);
 			}
 
-			else if(request.startsWith(QUIT)) {
+			else if (request.startsWith(USER)) {
+				traiterUSER(request);
+			}
 
+			else if(request.startsWith(QUIT)) {
 				traiterQUIT();
 			}
 
@@ -268,10 +279,10 @@ public class Communication extends Thread {
 			{
 				Mail m = (Mail) iter.next();
 				if(m.getToDelete()) {
-					this.userMails.remove(m);
+					iter.remove();
 				}
 			}
-			
+
 			reponse = "+OK " + this.userMails.size() + " messages left";
 		}
 		else {
@@ -402,7 +413,8 @@ public class Communication extends Thread {
 			reponse = "+OK waiting for " + userName + "'s password";
 			responseBuilder.append(reponse);
 			responseBuilder.append(END_OF_LINE);
-
+			this.sendMessage(reponse);
+			this.currentState = States.Pass_wait;
 			//attente de commande pass
 		}
 
@@ -416,9 +428,11 @@ public class Communication extends Thread {
 
 	protected void traiterPASS (String requete) {
 
-		System.out.println("Server receive a PASS command");
-		String params [] = requete.split(" ");
-		password = params[1];
+		if (requete.startsWith(PASS)){
+			System.out.println("Server receive a PASS command");
+			String params [] = requete.split(" ");
+			password = params[1];
+		}
 
 		if (checkPassword(password)) {
 
