@@ -13,6 +13,7 @@ import java.net.Socket;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Iterator;
 
 import popmail.Mail;
 import utils.Utilitaires;
@@ -49,7 +50,7 @@ public class Communication extends Thread {
 	protected BufferedInputStream socketReader;
 	protected BufferedOutputStream socketWriter;
 	protected StringBuilder responseBuilder;
-	
+
 
 
 	//les flux 
@@ -81,8 +82,8 @@ public class Communication extends Thread {
 		//creation users and passwords
 		users = new ArrayList<String>();
 		users.add("sydney");
-		users.add("bruno");
-		users.add("arnaud");
+		//users.add("bruno");
+		//users.add("arnaud");
 
 		passwords = new ArrayList<String>();
 		passwords.add("sydney");
@@ -261,11 +262,16 @@ public class Communication extends Thread {
 
 		if(mailToDelete) {
 
-			for(Mail m : this.userMails) {
+			Iterator <Mail> iter = userMails.iterator();
+
+			while (iter.hasNext()) 
+			{
+				Mail m = (Mail) iter.next();
 				if(m.getToDelete()) {
 					this.userMails.remove(m);
 				}
 			}
+			
 			reponse = "+OK " + this.userMails.size() + " messages left";
 		}
 		else {
@@ -278,7 +284,6 @@ public class Communication extends Thread {
 		responseBuilder.append(END_OF_LINE);
 		//send the reponse
 		this.sendMessage(responseBuilder.toString());
-
 		currentState = States.Inititialization_State;
 	}
 
@@ -353,9 +358,6 @@ public class Communication extends Thread {
 
 	protected boolean traiterDELETE(String requete, boolean mailToDelete) {
 		String reponse;
-		/*int tmp = message.indexOf(" ");
-		int tmp2 = message.indexOf("\n");
-		int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
 		String[] messages = requete.split(" ");
 		int id = Integer.parseInt(messages[1]);
 		reponse = "";
@@ -439,9 +441,6 @@ public class Communication extends Thread {
 
 	protected void traiterRETR(String requete) {
 		String reponse;
-		/*int tmp = message.indexOf(" ");
-		int tmp2 = message.indexOf("\n");
-		int id = Integer.parseInt(message.substring(tmp+1,tmp2));*/
 		String[] messages = requete.split(" ");
 		int id = Integer.parseInt(messages[1]);
 		reponse = "";

@@ -7,7 +7,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 
 import popmail.Mail;
-import popserver.Communication.States;
 import utils.Utilitaires;
 
 public class CommunicationSecure extends Communication {
