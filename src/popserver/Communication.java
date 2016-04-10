@@ -3,15 +3,13 @@ package popserver;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.math.BigInteger;
 import java.net.Socket;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Iterator;
 
@@ -77,21 +75,12 @@ public class Communication extends Thread {
 		Update_State;
 	}
 
-	public void initialization() {
+	public void initialisation() {
 
 		this.userName = "";
 		this.password = "";
-
-		//creation users and passwords
-		users = new ArrayList<String>();
-		users.add("sydney");
-		//users.add("bruno");
-		//users.add("arnaud");
-
-		passwords = new ArrayList<String>();
-		passwords.add("sydney");
-		passwords.add("titi");
-		passwords.add("tata");
+		System.out.println("creation users et mdp");
+		createUsersAndPasswords();
 
 		//on commence par mettre l'état en initialisation
 		this.currentState = States.Inititialization_State;
@@ -101,7 +90,7 @@ public class Communication extends Thread {
 
 		System.out.println(CLIENT_TRYING_A_CONNECTION);
 		this.socket = s;
-		this.initialization();
+		this.initialisation();
 	}
 
 	public Communication(Socket s, ArrayList<Mail> mails) {
@@ -109,7 +98,7 @@ public class Communication extends Thread {
 		System.out.println(CLIENT_TRYING_A_CONNECTION);
 		this.socket = s;
 		this.userMails = mails;
-		initialization();
+		this.initialisation();
 	}
 
 	/**
@@ -578,5 +567,31 @@ public class Communication extends Thread {
 			}
 		}
 		return false;
+	}
+	
+	protected void createUsersAndPasswords () {
+		FileInputStream stream;
+        this.users = new ArrayList<>();
+        try{
+            
+            stream = new FileInputStream(new File("users.txt"));
+            InputStreamReader inputStream = new InputStreamReader(stream);
+            BufferedReader buff = new BufferedReader(inputStream);
+            String line;
+            
+            System.out.println("création des utilisateurs et mdps associés");
+            while((line=buff.readLine())!=null){
+                String[] userInfo = line.split(" ");
+                System.out.print(userInfo[0]+  " ");
+                users.add(userInfo[0]);
+                System.out.println(userInfo[1]);
+                passwords.add(userInfo[1]);
+            }
+            buff.close();
+        }catch(FileNotFoundException e){
+        	e.printStackTrace();
+        } catch (IOException ex) {
+        	ex.printStackTrace();
+        }
 	}
 }

@@ -23,7 +23,7 @@ public class Server {
 		this.mails = new ArrayList<Mail>();
 
 		ArrayList<String> mailsPaths = new ArrayList<String>();
-		String filePath = "C:\\Users\\Sydney\\workspace\\pop3\\Mails";		
+		String filePath = "Mails/";		
 		mailsPaths = listerRepertoire(new File(filePath), mailsPaths);
 
 		for(String s : mailsPaths) {
@@ -59,7 +59,7 @@ public class Server {
 		int i; 
 		listefichiers=repertoire.list(); 
 		for(i=0;i<listefichiers.length;i++){ 
-			if(listefichiers[i].endsWith(".csv")){ 
+			if(listefichiers[i].endsWith(".txt")){ 
 				mailsPaths.add(listefichiers[i].substring(0,listefichiers[i].length()));
 			}
 		}
